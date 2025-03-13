@@ -1,8 +1,7 @@
 import collections
 from typing import Optional
-from game import Game
-
-KnownBounds = collections.namedtuple('KnownBounds', ['min', 'max'])
+from rl_system.game import Game
+from models import KnownBounds
 
 class MuZeroConfig(object):
 

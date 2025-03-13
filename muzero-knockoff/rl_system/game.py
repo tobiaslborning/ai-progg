@@ -4,56 +4,8 @@ from typing import List
 import gym
 import torch
 
+from models import Action, ActionHistory, Node, Player
 from snake import SnakeEnv
-
-class Action(object):
-
-  def __init__(self, index: int):
-    self.index = index
-
-  def __hash__(self):
-    return self.index
-
-  def __eq__(self, other):
-    return self.index == other.index
-
-  def __gt__(self, other):
-    return self.index > other.index
-
-class Player(object):
-  pass
-
-
-class Environment(gym.Env):
-  """The environment MuZero is interacting with."""
-
-  def step(self, action):
-    pass
-
-class ActionHistory(object):
-  """Simple history container used inside the search.
-
-  Only used to keep track of the actions executed.
-  """
-
-  def __init__(self, history: List[Action], action_space_size: int):
-    self.history = list(history)
-    self.action_space_size = action_space_size
-
-  def clone(self):
-    return ActionHistory(self.history, self.action_space_size)
-
-  def add_action(self, action: Action):
-    self.history.append(action)
-
-  def last_action(self) -> Action:
-    return self.history[-1]
-
-  def action_space(self) -> List[Action]:
-    return [Action(i) for i in range(self.action_space_size)]
-
-  def to_play(self) -> Player:
-    return Player()
 
 
 class Game(object):
@@ -90,7 +42,7 @@ class Game(object):
     self.rewards.append(reward)
     self.actions.append(action)
 
-  def store_search_statistics(self, root: "Node"): # "" to remove circular dependency
+  def store_search_statistics(self, root: Node): # "" to remove circular dependency
     sum_visits = sum(child.visit_count for child in root.children.values())
     action_space = (Action(index) for index in range(self.action_space_size))
     self.child_visits.append([

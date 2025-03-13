@@ -14,15 +14,11 @@ from torch import nn
 import torch
 import torch.nn.functional as F
 
-from game import Action
+from models import NetworkOutput
+from rl_system.game import Action
 
 
 
-class NetworkOutput(NamedTuple):
-  value: float
-  reward: float
-  policy_logits: Dict[Action, float]
-  hidden_state: torch.Tensor # List[float]
 
 class Network(object):
   def initial_inference(self, image) -> NetworkOutput:

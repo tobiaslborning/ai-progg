@@ -1,26 +1,9 @@
 ### Main storage object ###
 # Used to store both the replay buffer, and the trained neural networks 
-
 from configs import MuZeroConfig
-from game import Game
-from networks import Network
+from rl_system.game import Game
+from nn_manager.networks import Network
 import random
-
-class SharedStorage(object):
-
-  def __init__(self):
-    self._networks = {}
-
-  def latest_network(self) -> Network:
-    if self._networks:
-      return self._networks[max(self._networks.keys())]
-    else:
-      # policy -> uniform, value -> 0, reward -> 0
-      return make_uniform_network()
-
-  def save_network(self, step: int, network: Network):
-    self._networks[step] = network
-
 
 class ReplayBuffer(object):
 
@@ -59,7 +42,3 @@ class ReplayBuffer(object):
     num_positions = len(game.observations)
     return random.randint(0, num_positions - 1)
 
-# Stubs to make typechecker happy
-
-def make_uniform_network():
-  return Network()

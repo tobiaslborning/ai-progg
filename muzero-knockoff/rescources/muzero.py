@@ -2,10 +2,11 @@
 # Running the self-play and training 
 
 from configs import MuZeroConfig
-from game import Game
-from mcts import MCTS, Node
-from networks import Network
-from storage import ReplayBuffer, SharedStorage
+from rl_system.game import Game
+from mcts import MCTS
+from models import Node
+from nn_manager.networks import Network
+from rl_system.storage import ReplayBuffer, SharedStorage
 import tensorflow as tf
 
 # MuZero training is split into two independent parts: Network training and

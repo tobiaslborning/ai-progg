@@ -8,11 +8,10 @@ from typing import List, Optional
 import torch
 import torch.nn.functional as F
 
-from configs import KnownBounds, MuZeroConfig
+from configs import MuZeroConfig
 
-from game import Action, ActionHistory, Player
-
-from networks import Network, NetworkOutput
+from models import ActionHistory, KnownBounds, Node, Action, Player
+from nn_manager.networks import Network, NetworkOutput
 
 ###################
 ## START HELPERS ##

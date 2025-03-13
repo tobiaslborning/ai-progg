@@ -1,14 +1,12 @@
 
 import torch
-from networks import MuZeroNetwork
-from mockdata import create_snake_mock_data
-from game import Game, Player
+from models import Node, Player
+from nn_manager.networks import MuZeroNetwork
+from rl_system.game import Game
 from configs import make_snake_config
-from mcts import MCTS, Node
-from storage import ReplayBuffer
-from snake import SnakeEnv
+from mcts import MCTS
+from rl_system.storage import ReplayBuffer
 
-data = create_snake_mock_data(sequence_length=4, grid_size=10)
 
 network = MuZeroNetwork(
     observation_dimensions=(10, 10), 

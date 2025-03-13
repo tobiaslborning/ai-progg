@@ -4,7 +4,7 @@ from typing import List
 import gym
 import torch
 
-from models import Action, ActionHistory, Node, Player
+from models import Action, ActionHistory, Node, Player, SampleTargets
 from snake import SnakeEnv
 
 
@@ -56,7 +56,7 @@ class Game(object):
     return torch.Tensor(self.observations[state_index]) # TODO SUPPORT LONGER HISTORY
 
   def make_target(self, state_index: int, num_unroll_steps: int, td_steps: int,
-                  to_play: Player): # PLAYER NOT USED
+                  to_play: Player) -> SampleTargets: # PLAYER NOT USED
     """
     Make target data from a simulated step
     
@@ -81,7 +81,7 @@ class Game(object):
         value += reward * self.discount**i  # pytype: disable=unsupported-operands
 
       if current_index < len(self.root_values):
-        targets.append((value, self.rewards[current_index],
+        targets.append(SampleTargets(value, self.rewards[current_index],
                         self.child_visits[current_index]))
       else:
         # States past the end of games are treated as absorbing states.

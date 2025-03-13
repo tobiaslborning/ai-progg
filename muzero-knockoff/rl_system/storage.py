@@ -1,6 +1,8 @@
 ### Main storage object ###
 # Used to store both the replay buffer, and the trained neural networks 
+from typing import List
 from configs import MuZeroConfig
+from models import SampleData
 from rl_system.game import Game
 from nn_manager.networks import Network
 import random
@@ -17,10 +19,10 @@ class ReplayBuffer(object):
       self.buffer.pop(0)
     self.buffer.append(game)
 
-  def sample_batch(self, num_unroll_steps: int, td_steps: int):
+  def sample_batch(self, num_unroll_steps: int, td_steps: int) -> List[SampleData]:
     games = [self.sample_game() for _ in range(self.batch_size)]
     game_pos = [(g, self.sample_position(g)) for g in games]
-    return [(g.make_image(i), g.actions[i:i + num_unroll_steps],
+    return [SampleData(g.make_image(i), g.actions[i:i + num_unroll_steps],
              g.make_target(i, num_unroll_steps, td_steps, g.to_play()))
             for (g, i) in game_pos]
 

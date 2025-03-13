@@ -61,6 +61,7 @@ for i in range(sim_num):
 
 replay_buffer = ReplayBuffer(config=config)
 replay_buffer.save_game(game)
+print("Sample Batch:")
 print(replay_buffer.sample_batch(5, 0))
 
 # value, reward, policy_logits, hidden_state = network.initial_inference(data[0])

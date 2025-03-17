@@ -138,11 +138,11 @@ def make_snake_config() -> MuZeroConfig:
   
   return MuZeroConfig(
       action_space_size=action_space_size,
-      max_moves=32,  # Maximum moves before game ends
+      max_moves=48,  # Maximum moves before game ends
       discount=0.997,
       dirichlet_alpha=0.25,
       num_simulations=50,
-      batch_size=16, # 128
+      batch_size=32, # 128
       td_steps=0, # 10
       num_actors=8,
       lr_init=0.05,

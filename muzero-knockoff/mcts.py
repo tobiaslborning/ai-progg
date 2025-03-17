@@ -38,31 +38,6 @@ class MinMaxStats(object):
 ## END HELPERS ##
 #################
 
-###################
-## START CLASSES ##
-
-class Node(object):
-
-  def __init__(self, prior: float):
-    self.visit_count = 0
-    self.to_play = -1
-    self.prior = prior
-    self.value_sum = 0
-    self.children = {}
-    self.hidden_state = None
-    self.reward = 0
-
-  def expanded(self) -> bool:
-    return len(self.children) > 0
-
-  def value(self) -> float:
-    if self.visit_count == 0:
-      return 0
-    return self.value_sum / self.visit_count
-
-## END CLASSES ##
-#################
-
 
 ## CORE ALGORITHM ##
 # Core Monte Carlo Tree Search algorithm.
@@ -93,7 +68,7 @@ class MCTS(object):
       parent = search_path[-2]
 
       # One hot encode last action for recurrent inference TODO move into network?
-      last_action_tensor = torch.tensor([history.last_action().index])
+      last_action_tensor = torch.tensor([history.last_action().index]) # TODO is this [] wrapping problematic?
       one_hot_encoded_last_action = F.one_hot(last_action_tensor, len(action_space))
 
       # Run recurrent inference
@@ -146,7 +121,7 @@ class MCTS(object):
     node.to_play = to_play
     node.hidden_state = network_output.hidden_state
     node.reward = network_output.reward
-    policy = {a: math.exp(network_output.policy_logits[a]) for a in actions}
+    policy = {a: network_output.policy_logits[a] for a in actions}
     policy_sum = sum(policy.values())
     for action, p in policy.items():
       node.children[action] = Node(p / policy_sum)

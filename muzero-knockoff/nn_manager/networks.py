@@ -80,13 +80,16 @@ class MuZeroNetwork(nn.Module):
     hidden_state : torch.Tensor = self.representation_network(raw_state)
     policy_logits, value = self.prediction_network(hidden_state)
 
-    reward = 0 # Must be a single reward
-    policy_logits = policy_logits.detach().numpy()
+    reward = torch.tensor(0) # Must be a single reward
     policy_logits_dict = {}
     for i, logit in enumerate(policy_logits[0]):
-      policy_logits_dict[Action(i)] = logit
-    value = value.item() # Must be a single value
-    # NOTE hidden stat is not converted to numpy since it will only be used in the networks
+      policy_logits_dict[Action(i)] = logit # torch still tracks this variable
+
+    # print("\nInitial inference")
+    # print("Policy logits ", policy_logits)
+    # print("Reward", reward)
+    # print("Value", value)
+    # print("Policy logits dict", policy_logits_dict)
 
     return NetworkOutput(value, reward, policy_logits_dict, hidden_state)
 
@@ -95,13 +98,9 @@ class MuZeroNetwork(nn.Module):
     hidden_state_new, reward = self.dynamics_network(hidden_state, action)
     policy_logits, value = self.prediction_network(hidden_state_new)
 
-    reward = reward.item() # Must be a single reward
-    policy_logits = policy_logits.detach().numpy()
     policy_logits_dict = {}
     for i, logit in enumerate(policy_logits[0]):
       policy_logits_dict[Action(i)] = logit
-    value = value.item() # Must be a single value
-    # NOTE hidden stat is not converted to numpy since it will only be used in the networks
 
     return NetworkOutput(value, reward, policy_logits_dict, hidden_state_new)
 
@@ -175,7 +174,7 @@ class DynamicsNetwork(nn.Module):
     """
     hidden_state, action -> hidden_state_new, reward_logits
     """
-    # Concat hidden state [0.1, ... , -0.3] with action [0, 0, 1, 0] into one tensor
+    # TODO implement batch support currently just picking the first from the batch of one observation
     x = torch.cat((hidden_state, action), dim=1) 
     hidden_state_new = self.transition_network(x)
     reward = self.reward_network(hidden_state_new)

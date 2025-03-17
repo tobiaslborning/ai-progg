@@ -2,9 +2,11 @@
 # Used to store both the replay buffer, and the trained neural networks 
 from typing import List
 from configs import MuZeroConfig
-from models import SampleData
+from models import Action, SampleData
 from rl_system.game import Game
 from nn_manager.networks import Network
+import torch.nn.functional as F
+import torch
 import random
 
 class ReplayBuffer(object):
@@ -22,9 +24,20 @@ class ReplayBuffer(object):
   def sample_batch(self, num_unroll_steps: int, td_steps: int) -> List[SampleData]:
     games = [self.sample_game() for _ in range(self.batch_size)]
     game_pos = [(g, self.sample_position(g)) for g in games]
-    return [SampleData(g.make_image(i), g.actions[i:i + num_unroll_steps],
-             g.make_target(i, num_unroll_steps, td_steps, g.to_play()))
-            for (g, i) in game_pos]
+    
+    batch : List[SampleData] = []
+
+    for (g,i) in game_pos:
+      image = g.make_image(i)
+      actions : List[Action] = g.actions[i:i + num_unroll_steps]
+      # TODO find out if the [] wraping of action is problematic
+      one_hot_encoded_actions : List[torch.Tensor] = [F.one_hot(torch.tensor([action.index]), len(g.action_space())) 
+                                                      for action in actions] # Convert actions to one hot vector
+      targets = g.make_target(i, num_unroll_steps, td_steps, g.to_play())
+      batch.append(SampleData(image, one_hot_encoded_actions, targets))
+
+    return batch
+      
 
   def sample_game(self) -> Game:
     """

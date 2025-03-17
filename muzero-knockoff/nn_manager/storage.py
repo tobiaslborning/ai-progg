@@ -18,6 +18,8 @@ class SharedStorage(object):
     def save_network(self, step: int, network: MuZeroNetwork):
         self._networks[step] = network
 
+    
+
 # Stubs to make typechecker happy
 
 def make_uniform_network():

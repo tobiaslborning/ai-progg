@@ -84,17 +84,17 @@ class NetworkOutput(NamedTuple):
   Neural network output for uMCTS.
   
   Attributes:
-      value (float): Estimated value of the current state
-      reward (float): Immediate reward for the current state
-      policy_logits (Dict[Action, float]): Action probabilities (logits)
+      value (torch.Tensor): Estimated value of the current state
+      reward (torch.Tensor): Immediate reward for the current state
+      policy_logits (Dict[Action, torch.Tensor]): Action probabilities (logits)
       hidden_state (torch.Tensor): Internal representation state
 
   unpack like this:  
   value, reward, policy_logits, hidden_state = NetworkOutput()
   """
-  value: float
-  reward: float
-  policy_logits: Dict[Action, float]
+  value: torch.Tensor 
+  reward: torch.Tensor
+  policy_logits: Dict[Action, torch.Tensor]
   hidden_state: torch.Tensor # List[float]
 
 ### END Networks ###

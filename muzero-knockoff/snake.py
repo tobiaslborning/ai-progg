@@ -34,7 +34,7 @@ class SnakeEnv(gym.Env):
         super(SnakeEnv, self).__init__()
         
         # Grid size
-        self.grid_size = 10
+        self.grid_size = 4
         
         # Action space: 0=up, 1=right, 2=down, 3=left
         self.action_space = spaces.Discrete(4)

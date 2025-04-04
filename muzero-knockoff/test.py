@@ -3,28 +3,47 @@ import numpy as np
 import torch
 from models import Node, Player
 from nn_manager.networks import MuZeroNetwork
+from nn_manager.storage import SharedStorage
 from nn_manager.training import NetworkTrainer
 from rl_system.game import Game
 from configs import make_snake_config
 from mcts import MCTS
 from rl_system.storage import ReplayBuffer
 
+from torch.utils.tensorboard import SummaryWriter
+import os
+import datetime
+
+game_type = ["snake", "fruit_picker"]
+
+current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+log_dir = os.path.join("runs", f"muzero_snake_{current_time}")
+writer = SummaryWriter(log_dir=log_dir)
 
 network = MuZeroNetwork(
     observation_dimensions=(4, 4), 
-    num_observations=1, 
-    hidden_state_dimension=6, 
-    hidden_layer_neurons=8,
+    num_observations=2, 
+    hidden_state_dimension=64, 
+    hidden_layer_neurons=128,
     num_actions=4,
     value_size=1,
     reward_size=1
 )
 
+load_nn_dir = os.path.join("nn_manager", "stored_networks", "muzero_network_sim_2100.pt")
+
+checkpoint = torch.load(load_nn_dir)
+# network.load_state_dict(checkpoint['model_state_dict'])
+
 config = make_snake_config()
 
-for simulation in range(100):
+replay_buffer = ReplayBuffer(config=config)
+storage = SharedStorage()
+
+for simulation in range(10000):
+
     print(f"\nSIMULATION {simulation + 1}")
-    game = Game(action_space_size=4, discount=0.1)
+    game = Game(action_space_size=4, discount=0.95, game_type=game_type)
 
     game = config.new_game()
     mcts = MCTS(config=config)
@@ -35,6 +54,7 @@ for simulation in range(100):
         # obtain a hidden state given the current observation.
         root = Node(0)
         current_observation = game.make_image(-1)
+        # print("current obs:", current_observation)
         mcts.expand_node(root, game.to_play(), game.action_space(),
                     network.initial_inference(torch.Tensor(current_observation))) 
         mcts.add_exploration_noise(root)
@@ -49,6 +69,10 @@ for simulation in range(100):
         game.store_search_statistics(root)
         
         sim_num += 1
+
+    writer.add_scalar('Game/Steps', sim_num, simulation)
+    writer.add_scalar('Game/TotalReward', np.sum(game.rewards), simulation)
+
     print(f"Survived {sim_num} steps, reward: {np.sum(game.rewards)}" )
     # Test data generation
     num_unroll_steps = 5
@@ -60,23 +84,47 @@ for simulation in range(100):
     #         print(f"Value: {value}, Reward {reward}, Policy {policy}")
     #     print()
 
-    replay_buffer = ReplayBuffer(config=config)
+    
     replay_buffer.save_game(game)
 
     network_trainer = NetworkTrainer()
     
     optimizer = torch.optim.SGD(params=network.parameters(),
-                                        lr=0.05,
+                                        lr=config.lr_init,
                                         momentum=config.momentum)
     
     loss = 0
     print("Training on batches")
-    for i in range(16):
-        print("\u2588", end="")
-        batch = replay_buffer.sample_batch(num_unroll_steps=num_unroll_steps, td_steps=1)
-        loss = network_trainer.update_weights(optimizer=optimizer,
-                                    network=network,
-                                    batch=batch,
-                                    weight_decay=0) # NOT USED
+    batch = replay_buffer.sample_batch(num_unroll_steps=num_unroll_steps, td_steps=config.td_steps)
+    loss = network_trainer.update_weights(optimizer=optimizer,
+                                network=network,
+                                batch=batch,
+                                weight_decay=0) # NOT USED
+    
+    writer.add_scalar('Loss/Total', loss, simulation)
+    if isinstance(loss, dict):  # If your loss function returns components
+        writer.add_scalar('Loss/Value', loss['value_loss'], simulation)
+        writer.add_scalar('Loss/Policy', loss['policy_loss'], simulation)
+        writer.add_scalar('Loss/Reward', loss['reward_loss'], simulation)
+    
+    # Optional: Log network gradients and weights periodically
+    if simulation % 100 == 0:
+        for name, param in network.named_parameters():
+            writer.add_histogram(f'Gradients/{name}', 
+                                param.grad.data, 
+                                simulation)
+            writer.add_histogram(f'Weights/{name}', 
+                               param.data, 
+                               simulation)
+    nn_dir = os.path.join("nn_manager", "stored_networks", f"muzero_network_sim_{simulation}.pt")
+
+    if  simulation % 100 == 0 and simulation > 0:
+        torch.save({
+            'epoch': simulation,
+            'model_state_dict': network.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'loss': loss,
+        }, nn_dir)
+            
     print()
     print("Simulation loss:", loss, "\n")

@@ -37,9 +37,12 @@ class NetworkTrainer():
         self.step += 1
 
     def update_weights(self, optimizer: torch.optim, network: MuZeroNetwork, batch : List[SampleData],
-                    weight_decay: float) -> float:
+                    weight_decay: float) -> dict[str, float]:
         optimizer.zero_grad()
-        loss = 0
+        total_loss = 0
+        policy_loss = 0
+        reward_loss = 0
+        value_loss = 0
         for image, actions, targets in batch:
             # Initial step, from the real observation.
             value, reward, policy_logits, hidden_state = network.initial_inference(
@@ -63,7 +66,6 @@ class NetworkTrainer():
             for prediction, target in zip(predictions, targets):
                 gradient_scale, value, reward, policy_logits = prediction
                 target_value, target_reward, target_policy = target
-
                 # TODO PROBLEM: some target policies are empty find more elegant solution
                 if not len(target_policy) > 0:
                     continue
@@ -71,22 +73,35 @@ class NetworkTrainer():
                 # Stack individual policys from action dict into one tensor
                 policy_logits = torch.stack([policy for (_, policy) in policy_logits.items()])
                 target_policy = torch.tensor(target_policy)
-
-                l = (
-                    scalar_loss(value, torch.tensor([[target_value]])) +
-                    scalar_loss(reward, torch.tensor([[target_reward]])) +
-                    softmax_cross_entropy_with_logits(
-                        logits=policy_logits, targets=target_policy))
-                loss += l # tf.scale_gradient(l, gradient_scale)
-        loss.backward()
+                l_value = scalar_loss(value, torch.tensor([[target_value]]))
+                l_reward = scalar_loss(reward, torch.tensor([[target_reward]]))
+                l_policy = softmax_cross_entropy_with_logits(logits=policy_logits, targets=target_policy) * 0.2
+                
+                total_loss += (l_value + l_reward + l_policy) / len(batch) # Dividing loss by batch size
+                value_loss += l_value / len(batch)
+                reward_loss += l_reward / len(batch)
+                policy_loss += l_policy / len(batch)
+                # if target_reward < 0:
+                #     print("First frame  :", image[:,:,0])
+                #     print("Second frame :", image[:,:,1])
+                #     print("Actions:", actions)
+                #     print(f"Prediction: v:{value} r:{reward} p:{policy_logits}")
+                #     print(f"Target    : v:{target_value} r:{target_reward} p:{target_policy}")
+                #     print(f"Value loss: {l_value}")
+                #     print(f"Reward loss: {l_reward}")
+                #     print(f"Policy loss: {l_policy}")
+                
+        total_loss.backward()
         
-        U.clip_grad_value_(network.parameters(), 0.5) # Gradient clipping, ensuring gradients dont explode
+        U.clip_grad_norm_(network.parameters(), 5.0) # Gradient clipping, ensuring gradients dont explode L2 norm
         optimizer.step()
         # for weights in network.get_weights():
         #     loss += weight_decay * F.l1_loss(weights) # L2 in pseudocode
-
         # optimizer.minimize(loss)
-        return loss.item()
+        return {"total_loss" : total_loss.item(),
+                "value_loss" : value_loss,
+                "policy_loss" : policy_loss,
+                "reward_loss" : reward_loss}
 
 def softmax_cross_entropy_with_logits(logits : torch.tensor, targets : torch.tensor):
     """PyTorch version of tf.nn.softmax_cross_entropy_with_logits"""

@@ -53,15 +53,18 @@ class MCTS(object):
               network: Network):
     min_max_stats = MinMaxStats(self.config.known_bounds)
 
-    for _ in range(self.config.num_simulations):
+    for sim in range(self.config.num_simulations):
+      # print("sim nr", sim)
       history = action_history.clone()
       node = root
       search_path = [node]
-
+      # print("Start sim")
       while node.expanded():
         action, node = self.select_child(node, min_max_stats)
         history.add_action(action)
         search_path.append(node)
+        # print("root", root.value(), "path length", len(search_path))
+        
 
       # Inside the search tree we use the dynamics function to obtain the next
       # hidden state given an action and the previous hidden state.
@@ -75,7 +78,6 @@ class MCTS(object):
       network_output = network.recurrent_inference(parent.hidden_state,
                                                    one_hot_encoded_last_action)
       self.expand_node(node, history.to_play(), history.action_space(), network_output)
-
       self.backpropagate(search_path, network_output.value, history.to_play(),
                     self.config.discount, min_max_stats)
 
@@ -87,7 +89,7 @@ class MCTS(object):
     ]
     # t = self.config.visit_softmax_temperature_fn(
     #     num_moves=num_moves, training_steps=network.training_steps())
-    temp = 1 - num_moves * 0.01 # After 100 goes to argmax action based on probability
+    temp = 1 - num_moves * 0.05 # After 20 moves goes to argmax action based on probability
     _, action = softmax_sample(visit_counts, temp)
     return action
 
@@ -121,10 +123,15 @@ class MCTS(object):
     node.to_play = to_play
     node.hidden_state = network_output.hidden_state
     node.reward = network_output.reward
-    policy = {a: network_output.policy_logits[a] for a in actions}
-    policy_sum = sum(policy.values())
-    for action, p in policy.items():
-      node.children[action] = Node(p / policy_sum)
+    # print("Expanding node | Reward", network_output.reward)
+    policy_logits = torch.tensor([network_output.policy_logits[a] for a in actions])
+    # print("logits:", policy_logits)
+    probs = F.softmax(policy_logits, dim=0)
+    for i, action in enumerate(actions):
+      action_proba = probs[i].item()
+      # print(f"creating node from {action} with policy {action_proba}" )
+      node.children[action] = Node(action_proba)
+
 
 
   # At the end of a simulation, we propagate the evaluation all the way up the
@@ -135,7 +142,7 @@ class MCTS(object):
       node.value_sum += value if node.to_play == to_play else -value
       node.visit_count += 1
       min_max_stats.update(node.value())
-
+      # print("backpropagating: ", node.prior, "value", value.clone().item(), "reward", node.reward.clone().item())
       value = node.reward + discount * value
 
 

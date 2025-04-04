@@ -199,6 +199,7 @@ class PredictionNetwork(nn.Module):
                 out_features=num_actions)
     )
 
+
     self.value_network = nn.Sequential(
       nn.Linear(in_features=hidden_state_dimension, 
                 out_features=hidden_layer_neurons), 

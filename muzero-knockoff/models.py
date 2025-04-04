@@ -32,9 +32,17 @@ class Action(object):
 
 class Player(object):
   """
-  NOT IMPLEMENTED Player class for mulitplayer games
+  Player class for mulitplayer games default 1
   """
-  pass
+  def __init__(self, index: int = 1):
+    self.index = index
+
+  def __hash__(self):
+    return self.index
+
+  def __eq__(self, other):
+    return self.index == other.index
+
 
 class Environment(gym.Env):
   """
@@ -140,7 +148,7 @@ class SampleData(NamedTuple):
 class Node(object):
   """
   Node class for mcts.
-  prior : value of parent node.
+  prior : prior probability from parent node.
 
   Attributes:
     visit_count (int): Number of times node has been visited

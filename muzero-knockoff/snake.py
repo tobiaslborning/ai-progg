@@ -30,11 +30,11 @@ class SnakeEnv(gym.Env):
     
     metadata = {'render.modes': ['human', 'rgb_array']}
     
-    def __init__(self):
+    def __init__(self, grid_size):
         super(SnakeEnv, self).__init__()
         
         # Grid size
-        self.grid_size = 4
+        self.grid_size = grid_size
         
         # Action space: 0=up, 1=right, 2=down, 3=left
         self.action_space = spaces.Discrete(4)
@@ -231,28 +231,137 @@ class SnakeEnv(gym.Env):
         """Clean up resources."""
         pass
 
-# # Example usage
-# if __name__ == "__main__":
-#     env = SnakeEnv()
-#     obs = env.reset()
-#     done = False
-#     total_reward = 0
-#     action = 1
-#     while not done:
-#         # Random action for demonstration
-#         obs, reward, done, info = env.step(action)
-#         total_reward += reward
-        
-#         # Render the environment
-#         env.render('human')
-#         print(f"Action: {action}, Reward: {reward}, Done: {done}")
-#         print(obs)
-#         print(f"Observation shape: {obs.shape}")
-        
-#         # Simple pause to see the game
-#         inp = str(input("Chose action : "))
-#         # Direction mappings (0=up, 1=right, 2=down, 3=left)
-#         if (inp in ["w","d","s","a"]):
-#             action = ["w","d","s","a"].index(inp)
+
+import numpy as np
+from typing import Tuple, Dict, Any, Optional
+
+class SnakeEnvStrict(SnakeEnv):
+
+    """
+    A strict version of the Snake game where the snake dies if it hits a wall.
+    Unlike the original SnakeEnv where the snake wraps around the grid,
+    in this version the boundaries are deadly.
     
-#     print(f"Game over! Total reward: {total_reward}, Score: {info['score']}")
+    Actions:
+    - 0: Move Up
+    - 1: Move Right
+    - 2: Move Down
+    - 3: Move Left
+    
+    Observation:
+    - Single channel grid_size x grid_size grid where:
+      - 0: Empty space
+      - 1: Snake body
+      - 2: Snake head
+      - 3: Food
+    
+    Rewards:
+    - Eating food: +1.0
+    - Game over (collision with wall or self): -1.0
+    - Otherwise: 0.0
+    """
+    
+    def __init__(self):
+        super(SnakeEnvStrict, self).__init__()
+        # You can add any additional initialization specific to the strict version here
+    
+    def step(self, action: int) -> Tuple[np.ndarray, float, bool, Dict[str, Any]]:
+        """Take a step in the environment with strict wall collision."""
+        self.steps += 1
+        
+        # Prevent opposite direction movement (snake can't reverse)
+        if action == self.opposite_direction[self.direction]:
+            action = self.direction
+        
+        # Update direction
+        self.direction = action
+        
+        # Calculate new head position WITHOUT wrapping
+        head = self.snake[0]
+        dy, dx = self.direction_map[self.direction]
+        new_head = (head[0] + dy, head[1] + dx)
+        
+        # Check if snake hit a wall
+        if (new_head[0] < 0 or new_head[0] >= self.grid_size or 
+            new_head[1] < 0 or new_head[1] >= self.grid_size):
+            return self._get_observation(), -1.0, True, {'score': self.score}
+        
+        # Check if snake collided with itself
+        if new_head in self.snake:
+            return self._get_observation(), -1.0, True, {'score': self.score}
+        
+        # Move snake
+        self.snake.insert(0, new_head)
+        
+        # Check if food was eaten
+        reward = 0.0
+        if new_head == self.food:
+            self.score += 1
+            reward = 1.0
+            self._place_food()
+        else:
+            self.snake.pop()  # Remove tail if no food eaten
+        
+        # Check if max steps reached
+        done = self.steps >= self.max_steps
+        
+        # In snake game, episode could also end if the board is full
+        # (snake length equals grid size squared)
+        if len(self.snake) == self.grid_size * self.grid_size:
+            done = True
+            
+        return self._get_observation(), reward, done, {'score': self.score}
+    
+    def get_action_mask(self) -> np.ndarray:
+        """
+        Returns a mask of valid actions for the strict version.
+        1 = valid action, 0 = invalid action
+        
+        In the strict version, actions that would cause the snake to hit a wall
+        are considered invalid.
+        """
+        mask = np.ones(4, dtype=np.int8)
+        
+        # Mask the opposite direction (can't go backwards)
+        mask[self.opposite_direction[self.direction]] = 0
+        
+        # Also mask actions that would lead to wall collision
+        head = self.snake[0]
+        for action in range(4):
+            dy, dx = self.direction_map[action]
+            new_pos = (head[0] + dy, head[1] + dx)
+            
+            # If this action would lead to hitting a wall, mark it as invalid
+            if (new_pos[0] < 0 or new_pos[0] >= self.grid_size or 
+                new_pos[1] < 0 or new_pos[1] >= self.grid_size):
+                mask[action] = 0
+        
+        return mask 
+
+
+   
+# Example usage
+if __name__ == "__main__":
+    env = SnakeEnvStrict()
+    obs = env.reset()
+    done = False
+    total_reward = 0
+    action = 1
+    while not done:
+        # Random action for demonstration
+        obs, reward, done, info = env.step(action)
+        total_reward += reward
+        
+        # Render the environment
+        env.render('human')
+        print(f"Action: {action}, Reward: {reward}, Done: {done}")
+        print(obs)
+        print(f"Observation shape: {obs.shape}")
+        
+        # Simple pause to see the game
+        inp = str(input("Chose action : "))
+        # Direction mappings (0=up, 1=right, 2=down, 3=left)
+        if (inp in ["w","d","s","a"]):
+            action = ["w","d","s","a"].index(inp)
+    
+    print(f"Game over! Total reward: {total_reward}, Score: {info['score']}")

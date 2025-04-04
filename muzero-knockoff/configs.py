@@ -32,7 +32,7 @@ class MuZeroConfig(object):
     self.root_exploration_fraction = 0.25
 
     # UCB formula
-    self.pb_c_base = 19652
+    self.pb_c_base = 200
     self.pb_c_init = 1.25
 
     # If we already have some information about which values occur in the
@@ -44,7 +44,7 @@ class MuZeroConfig(object):
     ### Training
     self.training_steps = int(1000e3)
     self.checkpoint_interval = int(1e3)
-    self.window_size = int(1e6)
+    self.window_size = 128
     self.batch_size = batch_size
     self.num_unroll_steps = 5
     self.td_steps = td_steps
@@ -138,13 +138,13 @@ def make_snake_config() -> MuZeroConfig:
   
   return MuZeroConfig(
       action_space_size=action_space_size,
-      max_moves=48,  # Maximum moves before game ends
-      discount=0.997,
-      dirichlet_alpha=0.25,
-      num_simulations=50,
-      batch_size=32, # 128
-      td_steps=0, # 10
+      max_moves=64,  # Maximum moves before game ends
+      discount=0.95,  # MCTS backprop value discount
+      dirichlet_alpha=0.4,
+      num_simulations=128, # MCTS SIMULATIONS
+      batch_size=256, # 128
+      td_steps=3, # 10
       num_actors=8,
-      lr_init=0.05,
+      lr_init=0.15,
       lr_decay_steps=20e3,
       visit_softmax_temperature_fn=visit_softmax_temperature)

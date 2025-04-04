@@ -75,3 +75,6 @@ wandb/
 logs/
 output/
 experiments/
+stored_runs/
+stored_networks/
+best_networks/

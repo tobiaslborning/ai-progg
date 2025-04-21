@@ -138,11 +138,11 @@ class MCTS(object):
   # tree to the root.
   def backpropagate(self, search_path: List[Node], value: float, to_play: Player,
                     discount: float, min_max_stats: MinMaxStats):
-    for node in search_path:
+    for node in reversed(search_path):
       node.value_sum += value if node.to_play == to_play else -value
       node.visit_count += 1
-      min_max_stats.update(node.value())
       # print("backpropagating: ", node.prior, "value", value.clone().item(), "reward", node.reward.clone().item())
+      min_max_stats.update(node.value())
       value = node.reward + discount * value
 
 

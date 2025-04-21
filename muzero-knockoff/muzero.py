@@ -11,9 +11,6 @@ from configs import make_snake_config
 from mcts import MCTS
 from rl_system.storage import ReplayBuffer
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
-
-# T_0: Initial restart period
-# T_mult: Factor by which T_i increases after each restart
 from snake import SnakeEnv
 
 game_type = ["snake", "fruit_picker"][1]
@@ -31,7 +28,9 @@ optimizer = torch.optim.SGD(params=network.parameters(),
                             lr=config.lr_init,
                             momentum=config.momentum)
 
-scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=1028, T_mult=3, eta_min=0.05)
+# T_0: Initial restart period
+# T_mult: Factor by which T_i increases after each restart
+scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=1028, T_mult=3, eta_min=0.07)
 
 network_trainer = NetworkTrainer()
 
@@ -40,7 +39,7 @@ if game_type == "snake":
 if game_type == "fruit_picker":
     env = FruitPickerEnv(grid_size=5)
 
-for simulation in range(5000):
+for simulation in range(20000):
     game = Game(action_space_size=4, discount=0.95, env=env)
 
     print(f"SIMULATION {simulation + 1}")
@@ -67,13 +66,13 @@ for simulation in range(5000):
         game.store_search_statistics(root)
 
         sim_num += 1
+
     scheduler.step()
     env.reset()
     logger.log_game(sim_num, simulation, game)
 
-    print(f"Survived {sim_num} steps \n    reward: {round(np.sum(game.rewards),3)} \n    lr:{round(np.sum(optimizer.param_groups[0]['lr']), 5)}" )
+    print(f"""Survived {sim_num} steps \n    reward: {round(np.sum(game.rewards),3)} \n    lr:{round(np.sum(optimizer.param_groups[0]['lr']), 5)}""" )
     # Test data generation
-    num_unroll_steps = 5
     # for i in range(sim_num):
     #     print(f"Data step {i}")
     #     print(f"Observation {i}", game.make_image(i))
@@ -86,7 +85,7 @@ for simulation in range(5000):
     replay_buffer.save_game(game)
     
     print("Training on batches")
-    batch = replay_buffer.sample_batch(num_unroll_steps=num_unroll_steps, td_steps=config.td_steps)
+    batch = replay_buffer.sample_batch(num_unroll_steps=config.num_unroll_steps, td_steps=config.td_steps)
     loss = network_trainer.update_weights(optimizer=optimizer,
                                 network=network,
                                 batch=batch,

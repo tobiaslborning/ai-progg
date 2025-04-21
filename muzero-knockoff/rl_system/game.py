@@ -57,7 +57,7 @@ class Game(object):
 
   def make_image(self, state_index: int):
     """
-    Returns the two last frames, zeros if no previous fram exists
+    Returns the two last frames, zeros if no previous frames exists
     """
     # Game specific feature planes.
     current = self.observations[state_index] # Get state index

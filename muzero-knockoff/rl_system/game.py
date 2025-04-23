@@ -1,5 +1,6 @@
 ### Game object, used to interact with a simulated enviroment ###
 
+import os
 from typing import List
 import gym
 from matplotlib import animation, pyplot as plt
@@ -117,6 +118,8 @@ class Game(object):
     return ActionHistory(self.actions, self.action_space_size)
   
   def visualize_game(self, simulation, interval=500) -> None:
+
+
     fig, ax = plt.subplots(figsize=(5, 5))
 
     colors = ["#f0f0e8", "#4d4d4d", "#7df28c"]  # background, green, gray
@@ -147,7 +150,8 @@ class Game(object):
         repeat=False
     )
 
-    ani.save(f"rl_system/replay/fruit_picker_gif_{simulation}.gif", writer='pillow')
+    replay_path = os.path.join("muzero-knockoff", "rl_system", "replay")
+    ani.save(os.path.join(replay_path, f"fruit_picker_{simulation}.gif"), writer='pillow')
     plt.close()
 
 

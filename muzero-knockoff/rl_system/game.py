@@ -116,7 +116,7 @@ class Game(object):
   def action_history(self) -> ActionHistory:
     return ActionHistory(self.actions, self.action_space_size)
   
-  def visualize_game(self, interval=500) -> None:
+  def visualize_game(self, simulation, interval=500) -> None:
     fig, ax = plt.subplots(figsize=(5, 5))
 
     colors = ["#f0f0e8", "#4d4d4d", "#7df28c"]  # background, green, gray
@@ -147,6 +147,7 @@ class Game(object):
         repeat=False
     )
 
-    plt.show()
+    ani.save(f"rl_system/replay/fruit_picker_gif_{simulation}.gif", writer='pillow')
+    plt.close()
 
 

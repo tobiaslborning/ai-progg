@@ -150,7 +150,7 @@ class Game(object):
         repeat=False
     )
 
-    replay_path = os.path.join("muzero-knockoff", "rl_system", "replay")
+    replay_path = os.path.join("rl_system", "replay")
     ani.save(os.path.join(replay_path, f"fruit_picker_{simulation}.gif"), writer='pillow')
     plt.close()
 

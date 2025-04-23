@@ -1,7 +1,11 @@
 ### Game object, used to interact with a simulated enviroment ###
 
+import os
 from typing import List
 import gym
+from matplotlib import animation, pyplot as plt
+from matplotlib.colors import ListedColormap
+import numpy as np
 import torch
 
 from fruit_picker import FruitPickerEnv
@@ -112,4 +116,42 @@ class Game(object):
 
   def action_history(self) -> ActionHistory:
     return ActionHistory(self.actions, self.action_space_size)
+  
+  def visualize_game(self, simulation, interval=500) -> None:
+
+
+    fig, ax = plt.subplots(figsize=(5, 5))
+
+    colors = ["#f0f0e8", "#4d4d4d", "#7df28c"]  # background, green, gray
+    cmap = ListedColormap(colors)
+    
+    im = ax.imshow(self.observations[0], cmap=cmap, vmin=0, vmax=2)
+    ax.set_title("FruitPicker - Full Game")
+
+    rows, cols = self.observations[0].shape
+    ax.set_xticks(np.arange(-0.5, cols, 1), minor=True)
+    ax.set_yticks(np.arange(-0.5, rows, 1), minor=True)
+    ax.grid(which="minor", color="gray", linestyle='-', linewidth=1)
+
+    # Remove tick labels and major ticks
+    ax.tick_params(which="both", bottom=False, left=False,
+                   labelbottom=False, labelleft=False)
+
+    def update(frame):
+        im.set_array(self.observations[frame])
+        return [im]
+
+    ani = animation.FuncAnimation(
+        fig,
+        update,
+        frames=len(self.observations),
+        interval=interval,  # milliseconds per frame
+        blit=False,
+        repeat=False
+    )
+
+    replay_path = os.path.join("muzero-knockoff", "rl_system", "replay")
+    ani.save(os.path.join(replay_path, f"fruit_picker_{simulation}.gif"), writer='pillow')
+    plt.close()
+
 

@@ -39,7 +39,7 @@ network_trainer = NetworkTrainer()
 
 replay_path = os.path.join("muzero-knockoff", "rl_system", "replay")
 
-# Create directories if they don't exist
+# VISUALIZATION INITIALIZATION
 Path(replay_path).mkdir(parents=True, exist_ok=True)
 # Delete all existing gif files in replay directory
 gif_files = glob.glob(os.path.join(replay_path, "*.gif"))
@@ -55,7 +55,7 @@ if game_type == "snake":
 if game_type == "fruit_picker":
     env = FruitPickerEnv(grid_size=5)
 
-for simulation in range(20000):
+for simulation in range(1000):
     game = Game(action_space_size=4, discount=0.95, env=env)
 
     print(f"SIMULATION {simulation + 1}")
@@ -109,15 +109,14 @@ for simulation in range(20000):
     
     logger.log_loss(loss, simulation)
     
-    if  simulation % 10 == 0 and simulation > 0:
+    if  simulation % 100 == 0 and simulation > 0:
         logger.log_gradients(network, simulation)
         storage.save_network(sim_num=simulation, 
                              loss=loss['total_loss'], 
                              optimizer=optimizer, 
                              network=network,
                              game_type=game_type)
-        
-    #game.visualize_game(simulation)
+        game.visualize_game(simulation)
             
     print()
     print("Simulation loss:", loss["total_loss"], "\n")

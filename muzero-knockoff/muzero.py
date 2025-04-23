@@ -13,6 +13,8 @@ from rl_system.storage import ReplayBuffer
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from snake import SnakeEnv
 
+DEBUG = False
+
 game_type = ["snake", "fruit_picker"][1]
 
 logger = TensorBoardLogger(game_type)
@@ -39,7 +41,7 @@ if game_type == "snake":
 if game_type == "fruit_picker":
     env = FruitPickerEnv(grid_size=5)
 
-for simulation in range(20000):
+for simulation in range(1001):
     game = Game(action_space_size=4, discount=0.95, env=env)
 
     print(f"SIMULATION {simulation + 1}")
@@ -53,8 +55,10 @@ for simulation in range(20000):
         root = Node(0)
         current_observation = game.make_image(-1)
         # print("current obs:", current_observation)
+        init_output = network.initial_inference(torch.Tensor(current_observation))
+        if DEBUG: print(f"Initial prediciton value : {init_output.value.clone().item()}")
         mcts.expand_node(root, game.to_play(), game.action_space(),
-                    network.initial_inference(torch.Tensor(current_observation))) 
+                         init_output) 
         mcts.add_exploration_noise(root)
         # We then run a Monte Carlo Tree Search using only action sequences and the
         # model learned by the network.
@@ -64,7 +68,9 @@ for simulation in range(20000):
                                     network=network)
         game.apply(action)
         game.store_search_statistics(root)
-
+        if DEBUG: print("Root value prediction        : ", root.value().clone().item())
+        if DEBUG: print("Chose action: ", action.index, "\n")
+        if DEBUG: print("Chosen child reward prediction : ", root.children[action].reward.clone().item())
         sim_num += 1
 
     scheduler.step()

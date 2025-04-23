@@ -29,11 +29,11 @@ class MuZeroConfig(object):
 
     # Root prior exploration noise.
     self.root_dirichlet_alpha = dirichlet_alpha
-    self.root_exploration_fraction = 0.25
+    self.root_exploration_fraction = 0.35 # default 0.25
 
     # UCB formula
     self.pb_c_base = 200
-    self.pb_c_init = 1.25
+    self.pb_c_init = 1.75 # default 1.25
 
     # If we already have some information about which values occur in the
     # environment, we can use them to initialize the rescaling.
@@ -139,12 +139,12 @@ def make_snake_config() -> MuZeroConfig:
   return MuZeroConfig(
       action_space_size=action_space_size,
       max_moves=64,  # Maximum moves before game ends
-      discount=0.95,  # MCTS backprop value discount
+      discount=0.3,  # MCTS backprop value discount
       dirichlet_alpha=0.4,
-      num_simulations=128, # MCTS SIMULATIONS
+      num_simulations=64, # MCTS SIMULATIONS
       batch_size=256, # 128
       td_steps=3, # 10
       num_actors=8,
-      lr_init=0.15,
+      lr_init=0.2,
       lr_decay_steps=20e3,
       visit_softmax_temperature_fn=visit_softmax_temperature)

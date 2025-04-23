@@ -17,6 +17,7 @@ from nn_manager.networks import Network, NetworkOutput
 ## START HELPERS ##
 
 MAXIMUM_FLOAT_VALUE = float('inf')
+DEBUG = False
 
 class MinMaxStats(object):
   """A class that holds the min-max values of the tree."""
@@ -54,7 +55,7 @@ class MCTS(object):
     min_max_stats = MinMaxStats(self.config.known_bounds)
 
     for sim in range(self.config.num_simulations):
-      # print("sim nr", sim)
+      if DEBUG: print("\nsim nr", sim)
       history = action_history.clone()
       node = root
       search_path = [node]
@@ -123,7 +124,7 @@ class MCTS(object):
     node.to_play = to_play
     node.hidden_state = network_output.hidden_state
     node.reward = network_output.reward
-    # print("Expanding node | Reward", network_output.reward)
+    if DEBUG: print("Expanding node ", node, "| Reward", network_output.reward.clone().item())
     policy_logits = torch.tensor([network_output.policy_logits[a] for a in actions])
     # print("logits:", policy_logits)
     probs = F.softmax(policy_logits, dim=0)
@@ -138,10 +139,11 @@ class MCTS(object):
   # tree to the root.
   def backpropagate(self, search_path: List[Node], value: float, to_play: Player,
                     discount: float, min_max_stats: MinMaxStats):
+    if DEBUG: print("Backpropagating at ", search_path[-1], "initial value prediction", value.clone().item())
     for node in reversed(search_path):
       node.value_sum += value if node.to_play == to_play else -value
       node.visit_count += 1
-      # print("backpropagating: ", node.prior, "value", value.clone().item(), "reward", node.reward.clone().item())
+      if DEBUG: print("Currently at : ", node, "value: ", node.value().clone().item(), "reward", node.reward.clone().item())
       min_max_stats.update(node.value())
       value = node.reward + discount * value
 

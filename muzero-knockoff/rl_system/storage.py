@@ -16,6 +16,7 @@ class ReplayBuffer(object):
     self.window_size = config.window_size
     self.batch_size = config.batch_size
     self.buffer = []
+    self.pos_reward_mult = config.pos_reward_mult
 
   def save_game(self, game):
     if len(self.buffer) > self.window_size:
@@ -23,16 +24,19 @@ class ReplayBuffer(object):
     self.buffer.append(game)
 
   def sample_batch(self, num_unroll_steps: int, td_steps: int) -> List[SampleData]:
+    
     games = [self.sample_game() for _ in range(self.batch_size)]
     game_pos = [(g, self.sample_position(g)) for g in games]
     
     batch : List[SampleData] = []
-
-    for (g,i) in game_pos:
+    idx = 0
+    while len(batch) < self.batch_size and idx < self.batch_size:
+      g,i = game_pos[idx]
       image = g.make_image(i)
       actions : List[Action] = g.actions[i:i + num_unroll_steps]
 
       if len(actions) < 1:
+        idx += 1
         continue
       while len(actions) < num_unroll_steps:
          actions.append(actions[-1])
@@ -40,10 +44,17 @@ class ReplayBuffer(object):
       one_hot_encoded_actions : List[torch.Tensor] = [F.one_hot(torch.tensor([action.index]), len(g.action_space())) 
                                                       for action in actions] # Convert actions to one hot vector
       targets = g.make_target(i, num_unroll_steps, td_steps, g.to_play())
-      batch.append(SampleData(image, one_hot_encoded_actions, targets))
+      if 1.0 in [t.reward for t in targets]:
+        # Add ten of the sample if it includes a positive reward
+        for _ in range(self.pos_reward_mult):
+          batch.append(SampleData(image, one_hot_encoded_actions, targets))
+      else:
+        batch.append(SampleData(image, one_hot_encoded_actions, targets))
+      
+      idx += 1
 
     return batch
-      
+
 
   def sample_game(self) -> Game:
     """
@@ -78,7 +89,8 @@ def print_sample_data(sample: SampleData, verbose: bool = False):
   
   # Print observation information
   print("\n📊 OBSERVATION:")
-  print(f"  Shape: {sample.observation.shape}")
+  print(sample.observation[:,:, 1])
+  print(sample.observation[:,:, 0])
   
   if verbose:
       # Handle different observation dimensions
@@ -128,3 +140,18 @@ def print_sample_data(sample: SampleData, verbose: bool = False):
               print(f"    Most likely action: {action_name} ({max_prob:.4f})")
   
   print("\n" + "=" * 50)
+
+def print_batch_stats(batch : List[SampleData]):
+  rewards = {"-1.0" : 0,
+             "0.0" : 0,
+             "1.0" : 0}
+  for sample in batch:
+     for targets in sample.targets:
+        if (targets.reward) < 0:
+           rewards["-1.0"] += 1
+        elif (targets.reward) > 0:
+           rewards["1.0"] += 1
+        else:
+           rewards["0.0"] += 1
+
+  print(rewards)

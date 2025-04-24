@@ -12,7 +12,7 @@ from nn_manager.training import NetworkTrainer
 from rl_system.game import Game
 from configs import make_fruit_picker_config
 from mcts import MCTS
-from rl_system.storage import ReplayBuffer, print_sample_data
+from rl_system.storage import ReplayBuffer, print_batch_stats, print_sample_data
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from snake import SnakeEnv
 
@@ -65,68 +65,67 @@ for simulation in range(config.training_steps):
     mcts = MCTS(config=config)
     sim_num = 0
 
-    while not game.terminal() and len(game.actions) < config.max_moves: # NOTE SNAKE HAS BUILT IN MAX MOVES
+    while not game.terminal() and len(game.actions) < config.max_moves:
         # At the root of the search tree we use the representation function to
         # obtain a hidden state given the current observation.
         root = Node(0)
         current_observation = game.make_image(-1)
-        # print("current obs:", current_observation)
         init_output = network.initial_inference(torch.Tensor(current_observation))
-        if DEBUG: print(f"Initial prediciton value : {init_output.value.clone().item()}")
         mcts.expand_node(root, game.to_play(), game.action_space(),
                          init_output) 
         mcts.add_exploration_noise(root)
-        # We then run a Monte Carlo Tree Search using only action sequences and the
-        # model learned by the network.
+        # Run a Monte Carlo Tree Search using action sequences and the model learned by the network.
         mcts.run_mcts(root, game.action_history(), game.action_space(), network)
         action = mcts.select_action(num_moves=len(game.actions), 
                                     node=root, 
                                     network=network)
         game.apply(action)
         game.store_search_statistics(root)
-        if DEBUG: print("Root value prediction        : ", root.value().clone().item())
-        if DEBUG: print("Chose action: ", action.index, "\n")
-        if DEBUG: print("Chosen child reward prediction : ", root.children[action].reward.clone().item())
         sim_num += 1
 
-    scheduler.step()
+        if DEBUG: 
+            print(f"Initial prediciton value : {init_output.value.clone().item()}")
+            print("Root value prediction        : ", root.value().clone().item())
+            print("Chose action: ", action.index, "\n")
+            print("Chosen child reward prediction : ", root.children[action].reward.clone().item())
+
+    # Prepare for new game simulation        
+    mcts.step() # increment step count
+    scheduler.step() # increment step count
     env.reset()
-    logger.log_game(sim_num, simulation, game)
+    logger.log_game(sim_num, simulation, game) # Add game to logger
+    replay_buffer.save_game(game) # Save the game to the replay buffer
 
-    print(f"""Survived {sim_num} steps \n    reward: {round(np.sum(game.rewards),3)} \n    lr:{round(np.sum(optimizer.param_groups[0]['lr']), 5)}""" )
-    # Test data generation
-    # for i in range(sim_num):
-    #     print(f"Data step {i}")
-    #     print(f"Observation {i}", game.make_image(i))
-    #     print(f"Actions {[action.index for action in game.action_history().history[i : i + num_unroll_steps]]}")
-    #     for (value, reward, policy) in game.make_target(i, num_unroll_steps, 0, Player()):
-    #         print(f"Value: {value}, Reward {reward}, Policy {policy}")
-    #     print()
-
+    print(f"""
+Survived {sim_num} steps 
+    reward: {round(np.sum(game.rewards),3)}
+    lr:{round(np.sum(optimizer.param_groups[0]['lr']), 5)}
+""")
     
-    replay_buffer.save_game(game)
-    
-    print("Training on batches")
+    # Train on sampled batches
     batch = replay_buffer.sample_batch(num_unroll_steps=config.num_unroll_steps, td_steps=config.td_steps)
+    print("Batch reward stats:")
+    print_batch_stats(batch)
+    
     loss = network_trainer.update_weights(optimizer=optimizer,
                                 network=network,
                                 batch=batch,
                                 weight_decay=0) # NOT USED
     
-    
+    # Logg the loss (note this is not logarithmic loss)
     logger.log_loss(loss, simulation)
     
     if  simulation % 100 == 0 and simulation > 0:
-        logger.log_gradients(network, simulation)
+        logger.log_gradients(network, simulation) # Log the gradients of the networks
         storage.save_network(sim_num=simulation, 
                              loss=loss['total_loss'], 
                              optimizer=optimizer, 
                              network=network,
                              game_type=game_type)
-        game.visualize_game(simulation)
+        game.visualize_game(simulation) # Create gif showing game 
 
-        random_sample = batch[-1]
-        print_sample_data(random_sample)
+        random_sample = batch[-1] 
+        print_sample_data(random_sample) # Print random sample for insights
             
     print()
     print("Simulation loss:", loss["total_loss"], "\n")

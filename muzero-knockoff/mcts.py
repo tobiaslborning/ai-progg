@@ -48,7 +48,8 @@ class MinMaxStats(object):
 
 class MCTS(object):
   def __init__(self, config : MuZeroConfig):
-    self.config = config 
+    self.config = config
+    self.training_step = 1 
     
   def run_mcts(self, root: Node, action_history: ActionHistory, action_space: List[Action],
               network: Network):
@@ -71,7 +72,7 @@ class MCTS(object):
       # hidden state given an action and the previous hidden state.
       parent = search_path[-2]
 
-      # One hot encode last action for recurrent inference TODO move into network?
+      # One hot encode last action for recurrent inference
       last_action_tensor = torch.tensor([history.last_action().index]) # TODO is this [] wrapping problematic?
       one_hot_encoded_last_action = F.one_hot(last_action_tensor, len(action_space))
 
@@ -88,9 +89,7 @@ class MCTS(object):
     visit_counts = [
         (child.visit_count, action) for action, child in node.children.items()
     ]
-    # t = self.config.visit_softmax_temperature_fn(
-    #     num_moves=num_moves, training_steps=network.training_steps())
-    temp = self.config.visit_softmax_temperature_fn(num_moves)
+    temp = self.config.visit_softmax_temperature_fn(num_moves, self.training_step)
     _, action = softmax_sample(visit_counts, temp)
     return action
 
@@ -156,6 +155,10 @@ class MCTS(object):
     frac = self.config.root_exploration_fraction
     for a, n in zip(actions, noise):
       node.children[a].prior = node.children[a].prior * (1 - frac) + n * frac
+
+  def step(self):
+    """Increment training step"""
+    self.training_step += 1
 
 
 def softmax_sample(distribution, temperature: float):

@@ -23,6 +23,7 @@ class MuZeroConfig(object):
                 num_unroll_steps : float,
                 training_steps : int,
                 td_discount : float,
+                pos_reward_mult : int,
                 visit_softmax_temperature_fn,
                 known_bounds: Optional[KnownBounds] = None):
       ### Self-Play
@@ -58,6 +59,7 @@ class MuZeroConfig(object):
       self.td_discount = td_discount
       self.weight_decay = 1e-4
       self.momentum = 0.9
+      self.pos_reward_mult = pos_reward_mult
 
       # Exponential learning rate schedule
       self.lr_init = lr_init
@@ -68,28 +70,48 @@ class MuZeroConfig(object):
       return Game(self.action_space_size, self.discount)
 
 def make_fruit_picker_config() -> MuZeroConfig:
-  def visit_softmax_temperature(num_moves):
-    return max(0.1, 1.0 - (num_moves / 40))  # Decays to 0.1 by move 36
+  def visit_softmax_temperature(num_moves, training_step):
+    """
+    Rule for choosing which action to take after MCTS simulation
+    """
+    if training_step < 2000:
+        # Early in training - stay more exploratory
+        return max(0.5, 1.0 - (num_moves / 50))
+    elif training_step < 4000:
+        # Early in training - stay more exploratory
+        return max(0.3, 1.0 - (num_moves / 40))
+    else:
+        # Later in training - become more exploitative
+        return max(0.1, 1.0 - (num_moves / 30))
       
   # 10x10 grid plus 4 possible actions (up, down, left, right)
   action_space_size = 4
   
   return MuZeroConfig(
       action_space_size=action_space_size,
-      max_moves=64,  # Maximum moves before game ends
-      discount=0.4,  # MCTS backprop value discount weights reward vs value
-      dirichlet_alpha=0.4,
-      exploration_fraction=0.35,
-      num_simulations=64, # MCTS SIMULATIONS
-      batch_size=256, # 128
-      td_steps=2, # 10
-      td_discount=0.95, # 
-      num_unroll_steps=3,
+      max_moves=32,  # Maximum moves before game ends
+
+      ## MCTS
+      discount=0.3,  # MCTS backprop value discount weights reward vs value
+      dirichlet_alpha=0.7, # How uniform / concentrated action distribution is. 
+      #^ (0.1 = basically one action, 0.4 = moderate concentration, 0.8 = balanced, 1.6 = uniform)
+      exploration_fraction=0.2, # How much percentage of the action picking is from exploration noise
+      num_simulations=64, # Number of steps in the MCTS simulation
+      pb_c_init=1.75, # MCTS UCB constant
+      #^ Higher values increase the exploration bonus
+      #^ Lower values favor exploitation of known good moves
+      pb_c_base=200, # MCTS UCB constant, 200 should be good
+      
+      ## Training
+      batch_size=256, # Batch size of training data
+      pos_reward_mult=7, # How many copies of samples including a postive rewards to add to batch
+      #^ Purpose, 1.0 rewards are quite sparse in FruitCatcher, to normalize batch data, we need this
+      td_steps=2, # Steps ahead of action to assign value in the training targets
+      td_discount=0.95, # Discount for value td_steps ahead td_discount^td_steps
+      num_unroll_steps=3, # Number of actions and vaule targets to have in each training sample
       num_actors=8, # Not used
-      lr_init=0.13,
-      lr_decay_steps=20e3,
-      window_size=128,
-      pb_c_init=1.50,
-      pb_c_base=200,
+      lr_init=0.1, 
+      lr_decay_steps=20e3, # Not used
+      window_size=128, # Window size of numbers games stored in the replay buffer (256 is max for 16GB RAM)
       training_steps=10000,
       visit_softmax_temperature_fn=visit_softmax_temperature)

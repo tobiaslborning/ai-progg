@@ -126,7 +126,7 @@ class Game(object):
     cmap = ListedColormap(colors)
     
     im = ax.imshow(self.observations[0], cmap=cmap, vmin=0, vmax=2)
-    ax.set_title("FruitPicker - Full Game")
+    ax.set_title(f"FruitPicker - Survived {len(self.observations)} steps")
 
     rows, cols = self.observations[0].shape
     ax.set_xticks(np.arange(-0.5, cols, 1), minor=True)

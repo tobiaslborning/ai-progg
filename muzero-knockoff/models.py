@@ -119,7 +119,7 @@ class SampleTargets(NamedTuple):
     reward (float):
     policy_proba (List[float]): 
   """
-  value : float 
+  value : torch.Tensor 
   reward : float
   policy_proba : List[float]
 

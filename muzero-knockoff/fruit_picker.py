@@ -2,7 +2,7 @@ import numpy as np
 import gym
 from gym import spaces
 import random
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional, Tuple, Dict, Any, List
 
 class FruitPickerEnv(gym.Env):
     """
@@ -25,17 +25,20 @@ class FruitPickerEnv(gym.Env):
     
     Rewards:
     - Collecting fruit: +1.0
-    - Invalid move (trying to leave grid): -0.1
+    - Invalid move (trying to leave grid): -1.0
     - Otherwise: 0.0
     """
     
     metadata = {'render.modes': ['human', 'rgb_array']}
     
-    def __init__(self, grid_size=4, max_steps=1000):
+    def __init__(self, grid_size=4, max_steps=1000, num_fruits=3):
         super(FruitPickerEnv, self).__init__()
         
         # Grid size
         self.grid_size = grid_size
+        
+        # Number of fruits to place
+        self.num_fruits = num_fruits
         
         # Action space: 0=up, 1=right, 2=down, 3=left
         self.action_space = spaces.Discrete(4)
@@ -54,7 +57,7 @@ class FruitPickerEnv(gym.Env):
         
         # Initialize state variables
         self.agent_pos = None
-        self.fruit_pos = None
+        self.fruit_positions = []  # Now a list for multiple fruits
         self.direction = None
         self.score = 0
         self.steps = 0
@@ -78,15 +81,18 @@ class FruitPickerEnv(gym.Env):
             np.random.seed(seed)
             random.seed(seed)
         
-        # Initialize agent at center
-        self.agent_pos = (random.randint(1, 3), 
-                  random.randint(1, 3))
+        # Initialize agent at a random position
+        self.agent_pos = (random.randint(1, self.grid_size-2), 
+                           random.randint(1, self.grid_size-2))
         
         # Initialize direction randomly
         self.direction = random.randint(0, 3)
         
-        # Place fruit at random location not occupied by agent
-        self._place_fruit()
+        # Clear fruit positions
+        self.fruit_positions = []
+        
+        # Place multiple fruits
+        self._place_fruits()
         
         # Reset score and steps
         self.score = 0
@@ -107,38 +113,47 @@ class FruitPickerEnv(gym.Env):
         new_x = self.agent_pos[1] + dx
         
         # Check if the move is valid (within grid boundaries)
-        reward = 0.0
+        reward = 0.0 
+        done = False
+        
         if 0 <= new_y < self.grid_size and 0 <= new_x < self.grid_size:
             # Valid move, update agent position
             self.agent_pos = (new_y, new_x)
             
             # Check if fruit was collected
-            if self.agent_pos == self.fruit_pos:
+            new_pos = (new_y, new_x)
+            if new_pos in self.fruit_positions:
                 self.score += 1
                 reward = 1.0
-                self._place_fruit()
+                # Remove the collected fruit
+                self.fruit_positions.remove(new_pos)
+                # Place a new fruit
+                self._place_single_fruit()
+            
             # Check if max steps reached
             done = self.steps >= self.max_steps
         else:
             # Invalid move (trying to leave the grid)
-            reward = -1.0  # Small penalty for invalid moves
+            reward = -1.0  # Penalty for invalid moves
             done = True 
-
             
         return self._get_observation(), reward, done, {'score': self.score}
     
-    def _place_fruit(self) -> None:
-        """Place fruit at random location not occupied by agent."""
+    def _place_fruits(self) -> None:
+        """Place multiple fruits at random locations not occupied by agent or other fruits."""
+        for _ in range(self.num_fruits):
+            self._place_single_fruit()
+    
+    def _place_single_fruit(self) -> None:
+        """Place a single fruit at a random location not occupied by agent or other fruits."""
         available_positions = [
             (i, j) for i in range(self.grid_size) for j in range(self.grid_size)
-            if (i, j) != self.agent_pos
+            if (i, j) != self.agent_pos and (i, j) not in self.fruit_positions
         ]
         
         if available_positions:
-            self.fruit_pos = random.choice(available_positions)
-        else:
-            # This shouldn't happen but just in case
-            self.fruit_pos = None
+            new_fruit_pos = random.choice(available_positions)
+            self.fruit_positions.append(new_fruit_pos)
     
     def _get_observation(self) -> np.ndarray:
         """Convert current state to the observation format."""
@@ -148,9 +163,9 @@ class FruitPickerEnv(gym.Env):
         # Place agent (value 1)
         grid[self.agent_pos[0], self.agent_pos[1]] = self.AGENT
         
-        # Place fruit (value 2)
-        if self.fruit_pos is not None:
-            grid[self.fruit_pos[0], self.fruit_pos[1]] = self.FRUIT
+        # Place fruits (value 2)
+        for fruit_pos in self.fruit_positions:
+            grid[fruit_pos[0], fruit_pos[1]] = self.FRUIT
         
         return grid
     
@@ -159,7 +174,6 @@ class FruitPickerEnv(gym.Env):
         # Create a list of all possible actions
         return list(range(num_actions))
         
-
     def get_action_mask(self) -> np.ndarray:
         """
         Returns a mask of valid actions.
@@ -220,7 +234,7 @@ class FruitPickerEnv(gym.Env):
             
             # Create bottom border
             print("+" + "-" * self.grid_size + "+")
-            print(f"Score: {self.score}")
+            print(f"Score: {self.score} | Fruits on grid: {len(self.fruit_positions)}")
         
         else:
             super(FruitPickerEnv, self).render(mode=mode)
@@ -232,18 +246,19 @@ class FruitPickerEnv(gym.Env):
 
 # Example usage
 if __name__ == "__main__":
-    env = FruitPickerEnv(grid_size=5, max_steps=20)
+    env = FruitPickerEnv(grid_size=5, max_steps=20, num_fruits=3)
     obs = env.reset()
     done = False
     total_reward = 0
     
     print("Welcome to Fruit Picker!")
     print("Use w/d/s/a keys to move the agent (A) to collect fruits (F)")
+    print("There are multiple fruits on the grid at all times!")
     print("You cannot move outside the grid boundaries.")
     
     while not done:
         print("\nCurrent state:")
-        print(env._get_observation())
+        env.render()
         
         # Get valid actions
         action_mask = env.get_action_mask()

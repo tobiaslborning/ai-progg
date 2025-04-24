@@ -5,126 +5,69 @@ from models import KnownBounds
 
 class MuZeroConfig(object):
 
-  def __init__(self,
-               action_space_size: int,
-               max_moves: int,
-               discount: float,
-               dirichlet_alpha: float,
-               num_simulations: int,
-               batch_size: int,
-               td_steps: int,
-               num_actors: int,
-               lr_init: float,
-               lr_decay_steps: float,
-               visit_softmax_temperature_fn,
-               known_bounds: Optional[KnownBounds] = None):
-    ### Self-Play
-    self.action_space_size = action_space_size
-    self.num_actors = num_actors
+    def __init__(self,
+                action_space_size: int,
+                max_moves: int,
+                discount: float,
+                dirichlet_alpha: float,
+                num_simulations: int,
+                batch_size: int,
+                td_steps: int,
+                num_actors: int,
+                lr_init: float,
+                lr_decay_steps: float,
+                pb_c_base : float,
+                pb_c_init : float,
+                window_size : float,
+                exploration_fraction : float,
+                num_unroll_steps : float,
+                training_steps : int,
+                td_discount : float,
+                visit_softmax_temperature_fn,
+                known_bounds: Optional[KnownBounds] = None):
+      ### Self-Play
+      self.action_space_size = action_space_size
+      self.num_actors = num_actors
 
-    self.visit_softmax_temperature_fn = visit_softmax_temperature_fn
-    self.max_moves = max_moves
-    self.num_simulations = num_simulations
-    self.discount = discount
+      self.visit_softmax_temperature_fn = visit_softmax_temperature_fn
+      self.max_moves = max_moves
+      self.num_simulations = num_simulations
+      self.discount = discount
 
-    # Root prior exploration noise.
-    self.root_dirichlet_alpha = dirichlet_alpha
-    self.root_exploration_fraction = 0.35 # default 0.25
+      # Root prior exploration noise.
+      self.root_dirichlet_alpha = dirichlet_alpha
+      self.root_exploration_fraction = exploration_fraction # default 0.25
 
-    # UCB formula
-    self.pb_c_base = 200
-    self.pb_c_init = 1.75 # default 1.25
+      # UCB formula
+      self.pb_c_base = pb_c_base
+      self.pb_c_init = pb_c_init # default 1.25
 
-    # If we already have some information about which values occur in the
-    # environment, we can use them to initialize the rescaling.
-    # This is not strictly necessary, but establishes identical behaviour to
-    # AlphaZero in board games.
-    self.known_bounds = known_bounds
+      # If we already have some information about which values occur in the
+      # environment, we can use them to initialize the rescaling.
+      # This is not strictly necessary, but establishes identical behaviour to
+      # AlphaZero in board games.
+      self.known_bounds = known_bounds
 
-    ### Training
-    self.training_steps = int(1000e3)
-    self.checkpoint_interval = int(1e3)
-    self.window_size = 128
-    self.batch_size = batch_size
-    self.num_unroll_steps = 5
-    self.td_steps = td_steps
+      ### Training
+      self.training_steps = training_steps
+      self.checkpoint_interval = int(1e3)
+      self.window_size = window_size
+      self.batch_size = batch_size
+      self.num_unroll_steps = num_unroll_steps
+      self.td_steps = td_steps
+      self.td_discount = td_discount
+      self.weight_decay = 1e-4
+      self.momentum = 0.9
 
-    self.weight_decay = 1e-4
-    self.momentum = 0.9
+      # Exponential learning rate schedule
+      self.lr_init = lr_init
+      self.lr_decay_rate = 0.1
+      self.lr_decay_steps = lr_decay_steps
 
-    # Exponential learning rate schedule
-    self.lr_init = lr_init
-    self.lr_decay_rate = 0.1
-    self.lr_decay_steps = lr_decay_steps
+    def new_game(self):
+      return Game(self.action_space_size, self.discount)
 
-  def new_game(self):
-    return Game(self.action_space_size, self.discount)
-
-
-def make_board_game_config(action_space_size: int, max_moves: int,
-                           dirichlet_alpha: float,
-                           lr_init: float) -> MuZeroConfig:
-
-  def visit_softmax_temperature(num_moves, training_steps):
-    if num_moves < 30:
-      return 1.0
-    else:
-      return 0.0  # Play according to the max.
-
-  return MuZeroConfig(
-      action_space_size=action_space_size,
-      max_moves=max_moves,
-      discount=1.0,
-      dirichlet_alpha=dirichlet_alpha,
-      num_simulations=800,
-      batch_size=2048,
-      td_steps=max_moves,  # Always use Monte Carlo return.
-      num_actors=3000,
-      lr_init=lr_init,
-      lr_decay_steps=400e3,
-      visit_softmax_temperature_fn=visit_softmax_temperature,
-      known_bounds=KnownBounds(-1, 1))
-
-
-def make_go_config() -> MuZeroConfig:
-  return make_board_game_config(
-      action_space_size=362, max_moves=722, dirichlet_alpha=0.03, lr_init=0.01)
-
-
-def make_chess_config() -> MuZeroConfig:
-  return make_board_game_config(
-      action_space_size=4672, max_moves=512, dirichlet_alpha=0.3, lr_init=0.1)
-
-
-def make_shogi_config() -> MuZeroConfig:
-  return make_board_game_config(
-      action_space_size=11259, max_moves=512, dirichlet_alpha=0.15, lr_init=0.1)
-
-
-def make_atari_config() -> MuZeroConfig:
-
-  def visit_softmax_temperature(num_moves, training_steps):
-    if training_steps < 500e3:
-      return 1.0
-    elif training_steps < 750e3:
-      return 0.5
-    else:
-      return 0.25
-
-  return MuZeroConfig(
-      action_space_size=18,
-      max_moves=27000,  # Half an hour at action repeat 4.
-      discount=0.997,
-      dirichlet_alpha=0.25,
-      num_simulations=50,
-      batch_size=1024,
-      td_steps=10,
-      num_actors=350,
-      lr_init=0.05,
-      lr_decay_steps=350e3,
-      visit_softmax_temperature_fn=visit_softmax_temperature)
-
-def make_snake_config() -> MuZeroConfig:
+def make_fruit_picker_config() -> MuZeroConfig:
   def visit_softmax_temperature(num_moves, training_steps):
     if training_steps < 100e3:
       return 1.0
@@ -139,12 +82,19 @@ def make_snake_config() -> MuZeroConfig:
   return MuZeroConfig(
       action_space_size=action_space_size,
       max_moves=64,  # Maximum moves before game ends
-      discount=0.3,  # MCTS backprop value discount
+      discount=0.4,  # MCTS backprop value discount weights reward vs value
       dirichlet_alpha=0.4,
+      exploration_fraction=0.35,
       num_simulations=64, # MCTS SIMULATIONS
       batch_size=256, # 128
-      td_steps=3, # 10
-      num_actors=8,
-      lr_init=0.2,
+      td_steps=2, # 10
+      td_discount=0.95, # 
+      num_unroll_steps=3,
+      num_actors=8, # Not used
+      lr_init=0.13,
       lr_decay_steps=20e3,
+      window_size=128,
+      pb_c_init=1.50,
+      pb_c_base=200,
+      training_steps=10000,
       visit_softmax_temperature_fn=visit_softmax_temperature)

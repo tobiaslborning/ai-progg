@@ -10,9 +10,9 @@ from nn_manager.storage import SharedStorage
 from nn_manager.tensorboard_logger import TensorBoardLogger
 from nn_manager.training import NetworkTrainer
 from rl_system.game import Game
-from configs import make_snake_config
+from configs import make_fruit_picker_config
 from mcts import MCTS
-from rl_system.storage import ReplayBuffer
+from rl_system.storage import ReplayBuffer, print_sample_data
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from snake import SnakeEnv
 
@@ -22,7 +22,7 @@ game_type = ["snake", "fruit_picker"][1]
 
 logger = TensorBoardLogger(game_type)
 
-config = make_snake_config()
+config = make_fruit_picker_config()
 
 replay_buffer = ReplayBuffer(config=config)
 storage = SharedStorage()
@@ -39,7 +39,7 @@ scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=1028, T_mult=3, eta_min=0
 
 network_trainer = NetworkTrainer()
 
-replay_path = os.path.join("muzero-knockoff", "rl_system", "replay")
+replay_path = os.path.join("rl_system", "replay")
 
 # VISUALIZATION INITIALIZATION
 Path(replay_path).mkdir(parents=True, exist_ok=True)
@@ -55,10 +55,10 @@ for gif_file in gif_files:
 if game_type == "snake":
     env = SnakeEnv()
 if game_type == "fruit_picker":
-    env = FruitPickerEnv(grid_size=5)
+    env = FruitPickerEnv(grid_size=5, num_fruits=2)
 
-for simulation in range(1001):
-    game = Game(action_space_size=4, discount=0.95, env=env)
+for simulation in range(config.training_steps):
+    game = Game(action_space_size=4, discount=config.td_discount, env=env)
 
     print(f"SIMULATION {simulation + 1}")
 
@@ -113,6 +113,7 @@ for simulation in range(1001):
                                 batch=batch,
                                 weight_decay=0) # NOT USED
     
+    
     logger.log_loss(loss, simulation)
     
     if  simulation % 100 == 0 and simulation > 0:
@@ -123,12 +124,9 @@ for simulation in range(1001):
                              network=network,
                              game_type=game_type)
         game.visualize_game(simulation)
+
+        random_sample = batch[-1]
+        print_sample_data(random_sample)
             
     print()
     print("Simulation loss:", loss["total_loss"], "\n")
-
-print("observations")
-print("last action:", action.index)
-for obs in game.observations:
-    print()
-    print(obs)

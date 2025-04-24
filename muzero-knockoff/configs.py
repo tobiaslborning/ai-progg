@@ -68,13 +68,8 @@ class MuZeroConfig(object):
       return Game(self.action_space_size, self.discount)
 
 def make_fruit_picker_config() -> MuZeroConfig:
-  def visit_softmax_temperature(num_moves, training_steps):
-    if training_steps < 100e3:
-      return 1.0
-    elif training_steps < 200e3:
-      return 0.5
-    else:
-      return 0.25
+  def visit_softmax_temperature(num_moves):
+    return max(0.1, 1.0 - (num_moves / 40))  # Decays to 0.1 by move 36
       
   # 10x10 grid plus 4 possible actions (up, down, left, right)
   action_space_size = 4

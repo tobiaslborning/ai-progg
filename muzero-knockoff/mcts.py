@@ -90,7 +90,7 @@ class MCTS(object):
     ]
     # t = self.config.visit_softmax_temperature_fn(
     #     num_moves=num_moves, training_steps=network.training_steps())
-    temp = 1 - num_moves * 0.05 # After 20 moves goes to argmax action based on probability
+    temp = self.config.visit_softmax_temperature_fn(num_moves)
     _, action = softmax_sample(visit_counts, temp)
     return action
 

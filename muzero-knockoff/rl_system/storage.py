@@ -31,7 +31,12 @@ class ReplayBuffer(object):
     for (g,i) in game_pos:
       image = g.make_image(i)
       actions : List[Action] = g.actions[i:i + num_unroll_steps]
-      # TODO find out if the [] wraping of action is problematic
+
+      if len(actions) < 1:
+        continue
+      while len(actions) < num_unroll_steps:
+         actions.append(actions[-1])
+
       one_hot_encoded_actions : List[torch.Tensor] = [F.one_hot(torch.tensor([action.index]), len(g.action_space())) 
                                                       for action in actions] # Convert actions to one hot vector
       targets = g.make_target(i, num_unroll_steps, td_steps, g.to_play())
@@ -95,15 +100,9 @@ def print_sample_data(sample: SampleData, verbose: bool = False):
       action_np = action.cpu().numpy()
       if verbose:
           print(f"  Action {i}: {action_np}")
-      
-      # Decode one-hot action
-      if 1 in action_np:
-          action_idx = np.where(action_np == 1)[0][0]
-          action_name = ["Up", "Right", "Down", "Left"][action_idx] if action_idx < 4 else f"Action {action_idx}"
-          print(f"  Step {i}: {action_name} (index {action_idx})")
-      else:
-          print(f"  Step {i}: No action (all zeros)")
-  
+      print(action.clone())
+      print(["Up", "Right", "Down", "Left"])
+
   # Print targets (value, reward, policy_proba)
   print("\n🎯 TARGETS:")
   print(f"  Number of target steps: {len(sample.targets)}")

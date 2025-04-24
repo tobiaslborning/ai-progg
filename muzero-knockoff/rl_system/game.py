@@ -85,30 +85,36 @@ class Game(object):
     returns -> List[(value, reward, policy), ...]
     """
     targets = []
-    for current_index in range(state_index, state_index + num_unroll_steps + 1):
+    for current_index in range(state_index, state_index + num_unroll_steps):
       bootstrap_index = current_index + td_steps
       if bootstrap_index < len(self.root_values):
         value = self.root_values[bootstrap_index] * self.discount**td_steps
       else:
-        # If we're looking beyond the episode, use the last available root value
-        if len(self.root_values) > 0:
-            value = self.root_values[-1] * self.discount**td_steps
+        # If we're looking beyond the episode, death has most likely occured, use last reward as value
+        if len(self.rewards) > 0:
+          value = self.rewards[-1]
         else:
-            value = 0
+          value = -1.0
 
       # Calculate the discounted rewards
       for i, reward in enumerate(self.rewards[current_index:min(bootstrap_index, len(self.rewards))]):
         value += reward * self.discount**i
 
+      if not isinstance(value, torch.Tensor): 
+        value = torch.Tensor([value])
+
       if current_index < len(self.root_values):
         targets.append(SampleTargets(value, self.rewards[current_index],
                       self.child_visits[current_index]))
       else:
-        # For states past the end of games, use the last known reward and policy
+        # Use the last reward (which might be negative if the game ended by leaving the board)
         last_reward = self.rewards[-1] if len(self.rewards) > 0 else 0
-        last_policy = self.child_visits[-1] if len(self.child_visits) > 0 else []
-        targets.append(SampleTargets(value, last_reward, last_policy))
-    
+        # Uniform distribution (equal probability for all actions)
+        num_actions = len(self.child_visits[0]) if len(self.child_visits) > 0 else 4
+        terminal_policy = [1.0 / num_actions] * num_actions
+        
+        targets.append(SampleTargets(torch.Tensor([value]), last_reward, terminal_policy))
+
     return targets
   
   def to_play(self) -> Player:

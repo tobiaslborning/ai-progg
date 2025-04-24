@@ -51,10 +51,6 @@ class NetworkTrainer():
             predictions = [(1.0, value, reward, policy_logits)]
             # Recurrent steps, from action and previous hidden state.
             
-            # TODO some batches lack actions
-            if not len(actions) > 0:
-                continue
-
             for action in actions:
                 value, reward, policy_logits, hidden_state = network.recurrent_inference(
                     hidden_state, action)

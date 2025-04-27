@@ -9,7 +9,7 @@ from configs import MuZeroConfig
 from models import SampleData
 from nn_manager.networks import MuZeroNetwork
 from nn_manager.storage import SharedStorage
-from rl_system.storage import ReplayBuffer
+from rl_assets.storage import ReplayBuffer
 import torch.nn.functional as F
 import torch.nn.utils as U
 

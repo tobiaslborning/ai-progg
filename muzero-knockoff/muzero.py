@@ -1,20 +1,22 @@
-
+"""
+Entry file for running the MuZero RL training loop
+"""
 import glob
 import os
 from pathlib import Path
 import numpy as np
 import torch
-from fruit_picker import FruitPickerEnv
+from environments.fruit_picker import FruitPickerEnv
+from environments.snake import SnakeEnv
 from models import Node
 from nn_manager.storage import SharedStorage
 from nn_manager.tensorboard_logger import TensorBoardLogger
 from nn_manager.training import NetworkTrainer
-from rl_system.game import Game
+from rl_assets.game import Game
 from configs import make_fruit_picker_config
 from mcts import MCTS
-from rl_system.storage import ReplayBuffer, print_batch_stats, print_sample_data
+from rl_assets.storage import ReplayBuffer, print_batch_stats, print_sample_data
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
-from snake import SnakeEnv
 
 DEBUG = False
 

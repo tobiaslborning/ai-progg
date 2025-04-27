@@ -8,9 +8,9 @@ from matplotlib.colors import ListedColormap
 import numpy as np
 import torch
 
-from fruit_picker import FruitPickerEnv
+from environments.fruit_picker import FruitPickerEnv
 from models import Action, ActionHistory, Node, Player, SampleTargets
-from snake import SnakeEnv
+from environments.snake import SnakeEnv
 
 class Game(object):
   """A single episode of interaction with the environment."""

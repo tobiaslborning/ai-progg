@@ -4,7 +4,7 @@ from typing import List, NamedTuple
 import numpy as np
 from configs import MuZeroConfig
 from models import Action, SampleData
-from rl_system.game import Game
+from rl_assets.game import Game
 from nn_manager.networks import Network
 import torch.nn.functional as F
 import torch

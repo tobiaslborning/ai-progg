@@ -15,7 +15,7 @@ import torch
 import torch.nn.functional as F
 
 from models import NetworkOutput
-from rl_system.game import Action
+from rl_assets.game import Action
 
 
 

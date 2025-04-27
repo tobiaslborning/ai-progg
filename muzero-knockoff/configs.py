@@ -1,6 +1,6 @@
 import collections
 from typing import Optional
-from rl_system.game import Game
+from rl_assets.game import Game
 from models import KnownBounds
 
 class MuZeroConfig(object):

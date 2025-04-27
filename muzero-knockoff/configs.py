@@ -15,6 +15,7 @@ class MuZeroConfig(object):
                 td_steps: int,
                 num_actors: int,
                 lr_init: float,
+                lr: float,
                 lr_decay_steps: float,
                 pb_c_base : float,
                 pb_c_init : float,
@@ -63,6 +64,7 @@ class MuZeroConfig(object):
 
       # Exponential learning rate schedule
       self.lr_init = lr_init
+      self.lr = lr
       self.lr_decay_rate = 0.1
       self.lr_decay_steps = lr_decay_steps
 
@@ -74,10 +76,10 @@ def make_fruit_picker_config() -> MuZeroConfig:
     """
     Rule for choosing which action to take after MCTS simulation
     """
-    if training_step < 2000:
+    if training_step < 8000:
         # Early in training - stay more exploratory
         return max(0.5, 1.0 - (num_moves / 50))
-    elif training_step < 4000:
+    elif training_step < 16000:
         # Early in training - stay more exploratory
         return max(0.3, 1.0 - (num_moves / 40))
     else:
@@ -92,10 +94,10 @@ def make_fruit_picker_config() -> MuZeroConfig:
       max_moves=32,  # Maximum moves before game ends
 
       ## MCTS
-      discount=0.3,  # MCTS backprop value discount weights reward vs value
-      dirichlet_alpha=0.7, # How uniform / concentrated action distribution is. 
+      discount=0.5,  # MCTS backprop value discount weights reward vs value
+      dirichlet_alpha=0.5, # How uniform / concentrated action distribution is. 
       #^ (0.1 = basically one action, 0.4 = moderate concentration, 0.8 = balanced, 1.6 = uniform)
-      exploration_fraction=0.2, # How much percentage of the action picking is from exploration noise
+      exploration_fraction=0.25, # How much percentage of the action picking is from exploration noise
       num_simulations=64, # Number of steps in the MCTS simulation
       pb_c_init=1.75, # MCTS UCB constant
       #^ Higher values increase the exploration bonus
@@ -103,15 +105,16 @@ def make_fruit_picker_config() -> MuZeroConfig:
       pb_c_base=200, # MCTS UCB constant, 200 should be good
       
       ## Training
-      batch_size=256, # Batch size of training data
-      pos_reward_mult=7, # How many copies of samples including a postive rewards to add to batch
+      batch_size=512, # Batch size of training data
+      pos_reward_mult=5, # How many copies of samples including a postive rewards to add to batch
       #^ Purpose, 1.0 rewards are quite sparse in FruitCatcher, to normalize batch data, we need this
-      td_steps=2, # Steps ahead of action to assign value in the training targets
+      td_steps=1, # Steps ahead of action to assign value in the training targets
       td_discount=0.95, # Discount for value td_steps ahead td_discount^td_steps
       num_unroll_steps=3, # Number of actions and vaule targets to have in each training sample
       num_actors=8, # Not used
-      lr_init=0.1, 
+      lr_init=0.001, # Use for the first window_size // 2 simulations, while batch is being built
+      lr=0.1, 
       lr_decay_steps=20e3, # Not used
-      window_size=128, # Window size of numbers games stored in the replay buffer (256 is max for 16GB RAM)
-      training_steps=10000,
+      window_size=256, # Window size of numbers games stored in the replay buffer (256 is max for 16GB RAM)
+      training_steps=35000,
       visit_softmax_temperature_fn=visit_softmax_temperature)

@@ -69,9 +69,9 @@ class NetworkTrainer():
                 # Stack individual policys from action dict into one tensor
                 policy_logits = torch.stack([policy for (_, policy) in policy_logits.items()])
                 target_policy = torch.tensor(target_policy)
-                l_value = scalar_loss(value, torch.tensor([[target_value]]))
-                l_reward = scalar_loss(reward, torch.tensor([[target_reward]]))
-                l_policy = softmax_cross_entropy_with_logits(logits=policy_logits, targets=target_policy) * 0.2
+                l_value = scalar_loss(value, torch.tensor([[target_value]])) * 0.5
+                l_reward = scalar_loss(reward, torch.tensor([[target_reward]])) * 0.9
+                l_policy = softmax_cross_entropy_with_logits(logits=policy_logits, targets=target_policy) * 0.3
                 
                 total_loss += (l_value + l_reward + l_policy) / len(batch) # Dividing loss by batch size
                 value_loss += l_value / len(batch)
@@ -89,7 +89,7 @@ class NetworkTrainer():
                 
         total_loss.backward()
         
-        U.clip_grad_norm_(network.parameters(), 5.0) # Gradient clipping, ensuring gradients dont explode L2 norm
+        U.clip_grad_norm_(network.parameters(), 20.0) # Gradient clipping, ensuring gradients dont explode L2 norm
         optimizer.step()
         # for weights in network.get_weights():
         #     loss += weight_decay * F.l1_loss(weights) # L2 in pseudocode

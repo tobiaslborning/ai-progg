@@ -29,13 +29,12 @@ storage = SharedStorage()
 
 network = storage.latest_network(game_type=game_type)
 
-optimizer = torch.optim.SGD(params=network.parameters(),
-                            lr=config.lr_init,
-                            momentum=config.momentum)
+optimizer = torch.optim.Adam(params=network.parameters(),
+                            lr=config.lr_init)
 
 # T_0: Initial restart period
 # T_mult: Factor by which T_i increases after each restart
-scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=1028, T_mult=3, eta_min=0.07)
+scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=1028, T_mult=3, eta_min=0.0007)
 
 network_trainer = NetworkTrainer()
 
@@ -114,6 +113,9 @@ Survived {sim_num} steps
     
     # Logg the loss (note this is not logarithmic loss)
     logger.log_loss(loss, simulation)
+    if simulation % 10 == 0: 
+        game.visualize_game(simulation) # Create gif showing game 
+        replay_buffer.sort_pos_buffer() # Keep good games
     
     if  simulation % 100 == 0 and simulation > 0:
         logger.log_gradients(network, simulation) # Log the gradients of the networks
@@ -122,10 +124,25 @@ Survived {sim_num} steps
                              optimizer=optimizer, 
                              network=network,
                              game_type=game_type)
-        game.visualize_game(simulation) # Create gif showing game 
+        print("Buffer lengths")
+        print("pos  :", len(replay_buffer.pos_buffer))
+        print("zero :", len(replay_buffer.zero_buffer))
+        print("neg  :", len(replay_buffer.neg_buffer))
+        print("Top 20 postive games:")
+        for game in reversed(replay_buffer.pos_buffer):
+            print("reward:", np.sum(game.rewards), "steps:", len(game.rewards))
 
         random_sample = batch[-1] 
         print_sample_data(random_sample) # Print random sample for insights
-            
+
+    if simulation % 1000:
+        # Keep only top 20 every 1000th step
+        replay_buffer.pos_buffer = replay_buffer.pos_buffer[-20:]        
+
+    if simulation == (config.window_size // 4):
+        optimizer = torch.optim.Adam(params=network.parameters(),
+                            lr=config.lr)
+        scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=1028, T_mult=3, eta_min=0.007)
+
     print()
     print("Simulation loss:", loss["total_loss"], "\n")

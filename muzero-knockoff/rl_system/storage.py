@@ -15,13 +15,36 @@ class ReplayBuffer(object):
   def __init__(self, config: MuZeroConfig):
     self.window_size = config.window_size
     self.batch_size = config.batch_size
-    self.buffer = []
+    self.pos_buffer : List[Game] = []
+    self.zero_buffer : List[Game] = []
+    self.neg_buffer : List[Game] = []
     self.pos_reward_mult = config.pos_reward_mult
 
-  def save_game(self, game):
-    if len(self.buffer) > self.window_size:
-      self.buffer.pop(0)
-    self.buffer.append(game)
+  def save_game(self, game : Game):
+    if np.sum(game.rewards) > 0:
+      if len(self.pos_buffer) > self.window_size / 3:
+        self.pos_buffer.pop(0)
+      self.pos_buffer.append(game)
+    elif np.sum(game.rewards) == 0:
+      if len(self.zero_buffer) > self.window_size / 3:
+        self.zero_buffer.pop(0)
+      self.zero_buffer.append(game)
+    else:
+      if len(self.neg_buffer) > self.window_size / 3:
+        self.neg_buffer.pop(0)
+      self.neg_buffer.append(game)
+
+  def sort_pos_buffer(self):
+    """Sorts the games in the positive buffer to keep high reward/step games"""
+    def average_reward(game):
+      """Calculate the average reward for a game"""
+      if not game.rewards or len(game.rewards) == 0:
+          return 0  # Handle edge case of empty rewards list
+      return sum(game.rewards) / len(game.rewards)
+    
+    sorted_games = sorted(self.pos_buffer, key=average_reward)
+    self.pos_buffer = sorted_games
+
 
   def sample_batch(self, num_unroll_steps: int, td_steps: int) -> List[SampleData]:
     
@@ -62,8 +85,23 @@ class ReplayBuffer(object):
     -> random Game
     """
     # Sample game from buffer either uniformly or according to some priority.
-    num_games = len(self.buffer)
-    return self.buffer[random.randint(0, num_games - 1)] # Sample random game
+    buffer_type = random.randint(-1,1)
+    num_games_pos = len(self.pos_buffer)
+    num_games_zero = len(self.zero_buffer)
+    num_games_neg = len(self.neg_buffer)
+    if (buffer_type == 1) and num_games_pos > 0:
+      return self.pos_buffer[random.randint(0, num_games_pos - 1)] # Sample random game
+    if (buffer_type == 0) and num_games_zero > 0:
+      return self.zero_buffer[random.randint(0, num_games_zero - 1)] # Sample random game
+    if (buffer_type == -1) and num_games_neg > 0:
+      return self.neg_buffer[random.randint(0, num_games_neg - 1)] # Sample random game
+    # If buffers some buffers are empty, pick the first one with an available sample
+    if num_games_pos > 0:
+       return self.pos_buffer[0]
+    if num_games_zero > 0:
+       return self.zero_buffer[0]
+    if num_games_neg > 0:
+       return self.neg_buffer[0]
 
   def sample_position(self, game : Game) -> int:
     """

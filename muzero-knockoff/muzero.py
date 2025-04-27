@@ -40,7 +40,7 @@ scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=1028, T_mult=3, eta_min=0
 
 network_trainer = NetworkTrainer()
 
-replay_path = os.path.join("rl_system", "replay")
+replay_path = os.path.join("rl_assets", "replay")
 
 # VISUALIZATION INITIALIZATION
 Path(replay_path).mkdir(parents=True, exist_ok=True)
